@@ -9,47 +9,26 @@ import java.util.HashMap;
 import java.util.List;
 
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.ProtocolLibrary;
-import com.comphenix.protocol.ProtocolManager;
-import com.comphenix.protocol.events.ListenerPriority;
-import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.EnumWrappers.ItemSlot;
-import com.comphenix.protocol.wrappers.PlayerInfoData;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListenerCommon;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityEquipment;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerNamedSoundEffect;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerPlayerInfo;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerScoreboardTeam;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerUpdateHealth;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerUpdateTime;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
 import fr.leomelki.loupgarou.classes.LGWinType;
-import fr.leomelki.loupgarou.events.LGSkinLoadEvent;
-import fr.leomelki.loupgarou.events.LGUpdatePrefixEvent;
 import fr.leomelki.loupgarou.listeners.CancelListener;
 import fr.leomelki.loupgarou.listeners.ChatListener;
 import fr.leomelki.loupgarou.listeners.JoinListener;
 import fr.leomelki.loupgarou.listeners.LoupGarouListener;
+import fr.leomelki.loupgarou.listeners.PacketListener;
 import fr.leomelki.loupgarou.listeners.VoteListener;
 import fr.leomelki.loupgarou.roles.RAnge;
 import fr.leomelki.loupgarou.roles.RAssassin;
@@ -81,7 +60,6 @@ import fr.leomelki.loupgarou.roles.RVampire;
 import fr.leomelki.loupgarou.roles.RVillageois;
 import fr.leomelki.loupgarou.roles.RVoyante;
 import fr.leomelki.loupgarou.roles.Role;
-import fr.leomelki.loupgarou.utils.VariousUtils;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -91,7 +69,8 @@ public class MainLg extends JavaPlugin{
 	@Getter private static String prefix = ""/*"§7[§9Loup-Garou§7] "*/;
 	
 	@Getter @Setter private LGGame currentGame;//Because for now, only one game will be playable on one server (flemme)
-	
+	private PacketListenerCommon packetListener;
+
 	@Override
 	public void onEnable() {
 		instance = this;
@@ -113,99 +92,7 @@ public class MainLg extends JavaPlugin{
 		for(Player player : Bukkit.getOnlinePlayers())
 			Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(player, "is connected"));
 		
-	    ProtocolManager protocolManager = ProtocolLibrary.getProtocolManager();
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.UPDATE_TIME) {
-				@Override
-				public void onPacketSending(PacketEvent event) {
-					WrapperPlayServerUpdateTime time = new WrapperPlayServerUpdateTime(event.getPacket());
-					LGPlayer lgp = LGPlayer.thePlayer(event.getPlayer());
-					if(lgp.getGame() != null && lgp.getGame().getTime() != time.getTimeOfDay())
-						event.setCancelled(true);
-				}
-			}
-		);
-		//Éviter que les gens s'entendent quand ils se sélectionnent et qu'ils sont trop proche
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.NAMED_SOUND_EFFECT) {
-			@Override
-			public void onPacketSending(PacketEvent event) {
-					WrapperPlayServerNamedSoundEffect sound = new WrapperPlayServerNamedSoundEffect(event.getPacket());
-					if(sound.getSoundEffect() == Sound.ENTITY_PLAYER_ATTACK_NODAMAGE)
-						event.setCancelled(true);
-			}
-		}
-	);
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.PLAYER_INFO) {
-			@Override
-			public void onPacketSending(PacketEvent event) {
-				LGPlayer player = LGPlayer.thePlayer(event.getPlayer());
-				WrapperPlayServerPlayerInfo info = new WrapperPlayServerPlayerInfo(event.getPacket());
-				ArrayList<PlayerInfoData> datas = new ArrayList<PlayerInfoData>();
-				for(PlayerInfoData data : info.getData()) {
-					LGPlayer lgp = LGPlayer.thePlayer(Bukkit.getPlayer(data.getProfile().getUUID()));
-					if(player.getGame() != null && player.getGame() == lgp.getGame()) {
-						LGUpdatePrefixEvent evt2 = new LGUpdatePrefixEvent(player.getGame(), lgp, player, "");
-						WrappedChatComponent displayName = data.getDisplayName();
-						Bukkit.getPluginManager().callEvent(evt2);
-						if(evt2.getPrefix().length() > 0) {
-								try {
-								if(displayName != null) {
-									JSONObject obj = (JSONObject) new JSONParser().parse(displayName.getJson());
-									displayName = WrappedChatComponent.fromText(evt2.getPrefix()+obj.get("text"));
-								} else
-									displayName = WrappedChatComponent.fromText(evt2.getPrefix()+data.getProfile().getName());
-							} catch (ParseException e) {
-								e.printStackTrace();
-							}
-						}
-						LGSkinLoadEvent evt = new LGSkinLoadEvent(lgp.getGame(), lgp, player, data.getProfile());
-						Bukkit.getPluginManager().callEvent(evt);
-						datas.add(new PlayerInfoData(evt.getProfile(), data.getLatency(), data.getGameMode(), displayName));
-					}else
-						datas.add(data);
-				}
-				info.setData(datas);
-			}
-		});
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.UPDATE_HEALTH) {
-			@Override
-			public void onPacketSending(PacketEvent event) {
-				LGPlayer player = LGPlayer.thePlayer(event.getPlayer());
-				if(player.getGame() != null && player.getGame().isStarted()) {
-					WrapperPlayServerUpdateHealth health = new WrapperPlayServerUpdateHealth(event.getPacket());
-					health.setFood(6);
-				}
-			}
-		});
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.SCOREBOARD_TEAM) {
-			@Override
-			public void onPacketSending(PacketEvent event) {
-				LGPlayer player = LGPlayer.thePlayer(event.getPlayer());
-				WrapperPlayServerScoreboardTeam team = new WrapperPlayServerScoreboardTeam(event.getPacket());
-				team.setColor(ChatColor.WHITE);
-				Player other = Bukkit.getPlayer(team.getName());
-				if(other == null)return;
-				LGPlayer lgp = LGPlayer.thePlayer(other);
-				if(player.getGame() != null && player.getGame() == lgp.getGame()) {
-					LGUpdatePrefixEvent evt2 = new LGUpdatePrefixEvent(player.getGame(), lgp, player, "");
-					Bukkit.getPluginManager().callEvent(evt2);
-					if(evt2.getPrefix().length() > 0)
-						team.setPrefix(WrappedChatComponent.fromText(evt2.getPrefix()));
-					else
-						team.setPrefix(WrappedChatComponent.fromText("§f"));
-				}
-			}
-		});
-		protocolManager.addPacketListener(new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.ENTITY_EQUIPMENT) {
-			@Override
-			public void onPacketSending(PacketEvent event) {
-				LGPlayer player = LGPlayer.thePlayer(event.getPlayer());
-				if(player.getGame() != null) {
-					WrapperPlayServerEntityEquipment equip = new WrapperPlayServerEntityEquipment(event.getPacket());
-					if(equip.getSlot() == ItemSlot.OFFHAND && equip.getEntityID() != player.getPlayer().getEntityId())
-						equip.setItem(new ItemStack(Material.AIR));
-				}
-			}
-		});
+		packetListener = PacketEvents.getAPI().getEventManager().registerListener(new PacketListener());
 	
 	}
 	
@@ -401,7 +288,8 @@ public class MainLg extends JavaPlugin{
 	}
 	@Override
 	public void onDisable() {
-		ProtocolLibrary.getProtocolManager().removePacketListeners(this);
+		if(packetListener != null)
+			PacketEvents.getAPI().getEventManager().unregisterListener(packetListener);
 	}
 	public static MainLg getInstance() {
 		return instance;
