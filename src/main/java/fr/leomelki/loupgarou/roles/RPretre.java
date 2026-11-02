@@ -5,7 +5,6 @@ import java.util.Arrays;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_15_R1.inventory.CraftInventoryCustom;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,18 +17,13 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import com.comphenix.protocol.wrappers.WrappedDataWatcher;
-import com.comphenix.protocol.wrappers.WrappedDataWatcher.WrappedDataWatcherObject;
-import com.comphenix.protocol.wrappers.WrappedWatchableObject;
-
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityMetadata;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerHeldItemSlot;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGCustomItems;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
 import fr.leomelki.loupgarou.classes.LGPlayer.LGChooseCallback;
 import fr.leomelki.loupgarou.events.LGPreDayStartEvent;
+import fr.leomelki.loupgarou.utils.PacketUtils;
 import fr.leomelki.loupgarou.utils.VariousUtils;
 
 public class RPretre extends Role{
@@ -113,7 +107,6 @@ public class RPretre extends Role{
 		player.closeInventory();
 		player.openInventory(inventory);
 	}
-	WrappedDataWatcherObject invisible = new WrappedDataWatcherObject(0, WrappedDataWatcher.Registry.get(Byte.class));
 	@Override
 	protected void onNightTurn(LGPlayer player, Runnable callback) {
 		player.showView();
@@ -121,10 +114,7 @@ public class RPretre extends Role{
 			if(lgp.isDead() && (lgp.getRoleType() == RoleType.VILLAGER || lgp.getRoleType() == player.getRoleType())){
 				if(lgp.getPlayer() != null) {
 					player.getPlayer().showPlayer(lgp.getPlayer());
-					WrapperPlayServerEntityMetadata meta = new WrapperPlayServerEntityMetadata();
-					meta.setEntityID(lgp.getPlayer().getEntityId());
-					meta.setMetadata(Arrays.asList(new WrappedWatchableObject(invisible, (byte)0)));
-					meta.sendPacket(player.getPlayer());
+					PacketUtils.sendMetadata(player.getPlayer(), lgp.getPlayer().getEntityId(), PacketUtils.entityFlags((byte)0));
 				}
 			}else
 				player.getPlayer().hidePlayer(lgp.getPlayer());
@@ -179,9 +169,7 @@ public class RPretre extends Role{
 			player.getInventory().setItem(8, items[3]);
 			player.updateInventory();
 			//Pour éviter les missclick
-			WrapperPlayServerHeldItemSlot held = new WrapperPlayServerHeldItemSlot();
-			held.setSlot(0);
-			held.sendPacket(player);
+			PacketUtils.setHeldSlot(player, 0);
 			lgp.sendMessage("§6Choisissez qui réssusciter.");
 			lgp.canSelectDead = true;
 			lgp.choose(new LGChooseCallback() {
@@ -273,7 +261,7 @@ public class RPretre extends Role{
 	}
 	@EventHandler
 	public void onQuitInventory(InventoryCloseEvent e) {
-		if(e.getInventory() instanceof CraftInventoryCustom) {
+		if(VariousUtils.isCustomInventory(e.getInventory())) {
 			LGPlayer player = LGPlayer.thePlayer((Player)e.getPlayer());
 			if(player.getRole() == this && inMenu) {
 				new BukkitRunnable() {

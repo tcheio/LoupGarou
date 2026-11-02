@@ -4,7 +4,6 @@ import java.util.Arrays;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_15_R1.inventory.CraftInventoryCustom;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -17,11 +16,12 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerHeldItemSlot;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
+import fr.leomelki.loupgarou.utils.PacketUtils;
+import fr.leomelki.loupgarou.utils.VariousUtils;
 
 public class RSorciere extends Role{
 	private static ItemStack[] items = new ItemStack[4];
@@ -161,9 +161,7 @@ public class RSorciere extends Role{
 			player.updateInventory();
 			
 			//On le met sur le slot 0 pour éviter un missclick sur la croix
-			WrapperPlayServerHeldItemSlot hold = new WrapperPlayServerHeldItemSlot();
-			hold.setSlot(0);
-			hold.sendPacket(lgp.getPlayer());
+			PacketUtils.setHeldSlot(lgp.getPlayer(), 0);
 			
 			closeInventory(player);
 			lgp.choose((choosen) -> {
@@ -189,7 +187,7 @@ public class RSorciere extends Role{
 	}
 	@EventHandler
 	public void onQuitInventory(InventoryCloseEvent e) {
-		if(e.getInventory() instanceof CraftInventoryCustom) {
+		if(VariousUtils.isCustomInventory(e.getInventory())) {
 			LGPlayer player = LGPlayer.thePlayer((Player)e.getPlayer());
 			if(player.getRole() == this && inMenu) {
 				new BukkitRunnable() {

@@ -1,28 +1,16 @@
 package fr.leomelki.loupgarou.roles;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.entity.EntityType;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import com.comphenix.protocol.wrappers.EnumWrappers.ItemSlot;
-import com.comphenix.protocol.wrappers.WrappedDataWatcher;
-import com.comphenix.protocol.wrappers.WrappedDataWatcher.WrappedDataWatcherObject;
-import com.comphenix.protocol.wrappers.WrappedWatchableObject;
+import com.github.retrooper.packetevents.protocol.item.type.ItemTypes;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityDestroy;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityEquipment;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityLook;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityMetadata;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerSpawnEntityLiving;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
@@ -34,6 +22,7 @@ import fr.leomelki.loupgarou.events.LGPlayerGotKilledEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
 import fr.leomelki.loupgarou.events.LGUpdatePrefixEvent;
+import fr.leomelki.loupgarou.utils.PacketUtils;
 
 public class RCupidon extends Role{
 	public RCupidon(LGGame game) {
@@ -93,15 +82,11 @@ public class RCupidon extends Role{
 						LGPlayer first = player.getCache().remove("cupidon_first");
 						if(first == choosen) {
 							int entityId = Integer.MAX_VALUE-choosen.getPlayer().getEntityId();
-							WrapperPlayServerEntityDestroy destroy = new WrapperPlayServerEntityDestroy();
-							destroy.setEntityIds(new int[] {entityId});
-							destroy.sendPacket(player.getPlayer());
+							PacketUtils.destroyEntities(player.getPlayer(), entityId);
 						} else {
 						//	sendHead(player, choosen);
 							int entityId = Integer.MAX_VALUE-first.getPlayer().getEntityId();
-							WrapperPlayServerEntityDestroy destroy = new WrapperPlayServerEntityDestroy();
-							destroy.setEntityIds(new int[] {entityId});
-							destroy.sendPacket(player.getPlayer());
+							PacketUtils.destroyEntities(player.getPlayer(), entityId);
 							
 							setInLove(first, choosen);
 							player.sendMessage("§7§l"+first.getName()+"§9 et §7§l"+choosen.getName()+"§9 sont désormais follement amoureux.");
@@ -134,37 +119,19 @@ public class RCupidon extends Role{
 		player2.updatePrefix();
 	}
 
-	WrappedDataWatcherObject invisible = new WrappedDataWatcherObject(0, WrappedDataWatcher.Registry.get(Byte.class)),
-							 noGravity = new WrappedDataWatcherObject(5, WrappedDataWatcher.Registry.get(Boolean.class));
 	protected void sendHead(LGPlayer to, LGPlayer ofWho) {
 		int entityId = Integer.MAX_VALUE-ofWho.getPlayer().getEntityId();
-		WrapperPlayServerSpawnEntityLiving spawn = new WrapperPlayServerSpawnEntityLiving();
-		spawn.setEntityID(entityId);
-		spawn.setType(EntityType.DROPPED_ITEM);
-		//spawn.setMetadata(new WrappedDataWatcher(Arrays.asList(new WrappedWatchableObject(invisible, (byte)0x20), new WrappedWatchableObject(noGravity, true))));
 		Location loc = ofWho.getPlayer().getLocation();
-		spawn.setX(loc.getX());
-		spawn.setY(loc.getY()+1.9);
-		spawn.setZ(loc.getZ());
-		spawn.setHeadPitch(0);
 		Location toLoc = to.getPlayer().getLocation();
 		double diffX = loc.getX()-toLoc.getX(),
 			   diffZ = loc.getZ()-toLoc.getZ();
 		float yaw = 180-((float) Math.toDegrees(Math.atan2(diffX, diffZ)));
 		
-		spawn.setYaw(yaw);
-		spawn.sendPacket(to.getPlayer());
+		PacketUtils.spawnArmorStand(to.getPlayer(), entityId, loc.getX(), loc.getY()+1.9, loc.getZ(), yaw);
 		
-		WrapperPlayServerEntityLook look = new WrapperPlayServerEntityLook();
-		look.setEntityID(entityId);
-		look.setPitch(0);
-		look.setYaw(yaw);
-		look.sendPacket(to.getPlayer());
+		PacketUtils.rotateEntity(to.getPlayer(), entityId, yaw, 0);
 		
-		WrapperPlayServerEntityMetadata meta = new WrapperPlayServerEntityMetadata();
-		meta.setEntityID(entityId);
-		meta.setMetadata(Arrays.asList(new WrappedWatchableObject(invisible, (byte)0x20), new WrappedWatchableObject(noGravity, true)));
-		meta.sendPacket(to.getPlayer());
+		PacketUtils.sendMetadata(to.getPlayer(), entityId, PacketUtils.entityFlags((byte)0x20), PacketUtils.noGravity(true));
 		
 		
 		
@@ -172,12 +139,7 @@ public class RCupidon extends Role{
 			
 			@Override
 			public void run() {
-				WrapperPlayServerEntityEquipment equip = new WrapperPlayServerEntityEquipment();
-				equip.setEntityID(entityId);
-				equip.setSlot(ItemSlot.HEAD);
-		        ItemStack skull = new ItemStack(Material.SUGAR);
-				equip.setItem(skull);
-				equip.sendPacket(to.getPlayer());
+				PacketUtils.setHelmet(to.getPlayer(), entityId, ItemTypes.SUGAR);
 			}
 		}.runTaskLater(MainLg.getInstance(), 2);
 	}
@@ -206,16 +168,14 @@ public class RCupidon extends Role{
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onGameEnd(LGGameEndEvent e) {
 		if(e.getGame() == getGame()) {
-			WrapperPlayServerEntityDestroy destroy = new WrapperPlayServerEntityDestroy();
 			ArrayList<Integer> ids = new ArrayList<Integer>();
 			for(LGPlayer lgp : getGame().getInGame())
 				ids.add(Integer.MAX_VALUE-lgp.getPlayer().getEntityId());
 			int[] intList = new int[ids.size()];
 			for(int i = 0;i<ids.size();i++)
 				intList[i] = ids.get(i);
-			destroy.setEntityIds(intList);
 			for(LGPlayer lgp : getGame().getInGame())
-				destroy.sendPacket(lgp.getPlayer());
+				PacketUtils.destroyEntities(lgp.getPlayer(), intList);
 			
 			for(LGPlayer lgp : getGame().getInGame())
 				if(lgp.getCache().has("inlove")) {

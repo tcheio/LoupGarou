@@ -7,7 +7,6 @@ import java.util.Map.Entry;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerScoreboardTeam;
 import fr.leomelki.loupgarou.classes.LGCustomSkin;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
@@ -20,6 +19,7 @@ import fr.leomelki.loupgarou.events.LGNightEndEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
 import fr.leomelki.loupgarou.events.LGSkinLoadEvent;
 import fr.leomelki.loupgarou.events.LGUpdatePrefixEvent;
+import fr.leomelki.loupgarou.utils.PacketUtils;
 import lombok.Getter;
 
 public class RLoupGarou extends Role{
@@ -145,12 +145,8 @@ public class RLoupGarou extends Role{
 	@EventHandler
 	public void onGameJoin(LGGameEndEvent e) {
 		if(e.getGame() == getGame()) {
-			WrapperPlayServerScoreboardTeam teamDelete = new WrapperPlayServerScoreboardTeam();
-			teamDelete.setMode(1);
-			teamDelete.setName("loup_garou_list");
-			
 			for(LGPlayer lgp : getGame().getInGame())
-				teamDelete.sendPacket(lgp.getPlayer());
+				PacketUtils.removeTeam(lgp.getPlayer(), "loup_garou_list");
 		}
 	}
 	
@@ -158,8 +154,8 @@ public class RLoupGarou extends Role{
 	public void onSkinChange(LGSkinLoadEvent e) {
 		if(e.getGame() == getGame())
 			if(getPlayers().contains(e.getPlayer()) && getPlayers().contains(e.getTo()) && showSkins) {
-				e.getProfile().getProperties().removeAll("textures");
-				e.getProfile().getProperties().put("textures", LGCustomSkin.WEREWOLF.getProperty());
+				e.getProfile().getTextureProperties().removeIf(property -> property.getName().equals("textures"));
+				e.getProfile().getTextureProperties().add(LGCustomSkin.WEREWOLF.getProperty());
 			}
 	}
 	@EventHandler

@@ -6,7 +6,6 @@ import java.util.List;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_15_R1.inventory.CraftInventoryCustom;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -18,17 +17,18 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerHeldItemSlot;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGGame;
 import fr.leomelki.loupgarou.classes.LGPlayer;
-import fr.leomelki.loupgarou.classes.LGWinType;
 import fr.leomelki.loupgarou.classes.LGPlayer.LGChooseCallback;
+import fr.leomelki.loupgarou.classes.LGWinType;
 import fr.leomelki.loupgarou.events.LGEndCheckEvent;
 import fr.leomelki.loupgarou.events.LGGameEndEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent;
-import fr.leomelki.loupgarou.events.LGPyromaneGasoilEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
+import fr.leomelki.loupgarou.events.LGPyromaneGasoilEvent;
+import fr.leomelki.loupgarou.utils.PacketUtils;
+import fr.leomelki.loupgarou.utils.VariousUtils;
 
 public class RPyromane extends Role{
 	static ItemStack[] items = new ItemStack[9];
@@ -191,9 +191,7 @@ public class RPyromane extends Role{
 			player.getInventory().setItem(8, cancel);
 			player.updateInventory();
 			//Pour éviter les missclick
-			WrapperPlayServerHeldItemSlot held = new WrapperPlayServerHeldItemSlot();
-			held.setSlot(0);
-			held.sendPacket(player);
+			PacketUtils.setHeldSlot(player, 0);
 			lgp.sendMessage("§6Choisis deux joueurs à recouvrir de gasoil.");
 			lgp.choose(new LGChooseCallback() {
 				@Override
@@ -273,7 +271,7 @@ public class RPyromane extends Role{
 	}
 	@EventHandler
 	public void onQuitInventory(InventoryCloseEvent e) {
-		if(e.getInventory() instanceof CraftInventoryCustom) {
+		if(VariousUtils.isCustomInventory(e.getInventory())) {
 			LGPlayer player = LGPlayer.thePlayer((Player)e.getPlayer());
 			if(player.getRole() == this && inMenu) {
 				new BukkitRunnable() {

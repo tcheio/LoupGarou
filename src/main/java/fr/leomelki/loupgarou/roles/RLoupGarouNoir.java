@@ -4,7 +4,6 @@ import java.util.Arrays;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.craftbukkit.v1_15_R1.inventory.CraftInventoryCustom;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -24,6 +23,7 @@ import fr.leomelki.loupgarou.classes.LGVote;
 import fr.leomelki.loupgarou.events.LGCustomItemChangeEvent;
 import fr.leomelki.loupgarou.events.LGNightEndEvent;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
+import fr.leomelki.loupgarou.utils.VariousUtils;
 
 public class RLoupGarouNoir extends Role{
 	static ItemStack[] items = new ItemStack[9];
@@ -203,7 +203,7 @@ public class RLoupGarouNoir extends Role{
 
 	@EventHandler
 	public void onQuitInventory(InventoryCloseEvent e) {
-		if(e.getInventory() instanceof CraftInventoryCustom) {
+		if(VariousUtils.isCustomInventory(e.getInventory())) {
 			LGPlayer player = LGPlayer.thePlayer((Player)e.getPlayer());
 			if(player.getRole() == this && inMenu) {
 				new BukkitRunnable() {
