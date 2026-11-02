@@ -23,20 +23,9 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-import com.comphenix.protocol.wrappers.EnumWrappers.NativeGameMode;
-import com.comphenix.protocol.wrappers.EnumWrappers.PlayerInfoAction;
-import com.comphenix.protocol.wrappers.PlayerInfoData;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
-import com.comphenix.protocol.wrappers.WrappedGameProfile;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerScoreboardObjective;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerScoreboardObjective.ObjectiveMode;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerChat;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerEntityDestroy;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerExperience;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerPlayerInfo;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerScoreboardObjective;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerScoreboardTeam;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerUpdateHealth;
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerUpdateTime;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGCustomItems.LGCustomItemsConstraints;
 import fr.leomelki.loupgarou.classes.chat.LGChat;
@@ -65,6 +54,7 @@ import fr.leomelki.loupgarou.roles.RoleType;
 import fr.leomelki.loupgarou.roles.RoleWinType;
 import fr.leomelki.loupgarou.scoreboard.CustomScoreboard;
 import fr.leomelki.loupgarou.utils.MultipleValueMap;
+import fr.leomelki.loupgarou.utils.PacketUtils;
 import fr.leomelki.loupgarou.utils.VariousUtils;
 import lombok.Getter;
 import lombok.Setter;
@@ -103,11 +93,8 @@ public class LGGame implements Listener{
 	private MultipleValueMap<LGPlayerKilledEvent.Reason, LGPlayer> deaths = new MultipleValueMap<LGPlayerKilledEvent.Reason, LGPlayer>();
 
 	public void sendActionBarMessage(String msg) {
-		WrapperPlayServerChat chat = new WrapperPlayServerChat();
-		chat.setPosition((byte)2);
-		chat.setMessage(WrappedChatComponent.fromText(msg));
 		for(LGPlayer lgp : inGame)
-			chat.sendPacket(lgp.getPlayer());
+			PacketUtils.sendActionBar(lgp.getPlayer(), msg);
 	}
 	public void broadcastMessage(String msg) {
 		for(LGPlayer lgp : inGame)
@@ -128,11 +115,10 @@ public class LGGame implements Listener{
 		waitTask = new BukkitRunnable() {
 			@Override
 			public void run() {
-				WrapperPlayServerExperience exp = new WrapperPlayServerExperience();
-				exp.setLevel((short)(Math.floorDiv(waitTicks, 20)+1));
-				exp.setExperienceBar((float)waitTicks/(seconds*20F));
+				int level = Math.floorDiv(waitTicks, 20)+1;
+				float bar = (float)waitTicks/(seconds*20F);
 				for(LGPlayer player : getInGame()) {
-					exp.sendPacket(player.getPlayer());
+					PacketUtils.sendExperience(player.getPlayer(), bar, level);
 					if(generator != null)
 						player.sendActionBarMessage(generator.generate(player, Math.floorDiv(waitTicks, 20)+1));
 				}
@@ -153,11 +139,10 @@ public class LGGame implements Listener{
 		waitTask = new BukkitRunnable() {
 			@Override
 			public void run() {
-				WrapperPlayServerExperience exp = new WrapperPlayServerExperience();
-				exp.setLevel((short)(Math.floorDiv(waitTicks, 20)+1));
-				exp.setExperienceBar((float)waitTicks/(initialSeconds*20F));
+				int level = Math.floorDiv(waitTicks, 20)+1;
+				float bar = (float)waitTicks/(initialSeconds*20F);
 				for(LGPlayer player : getInGame()) {
-					exp.sendPacket(player.getPlayer());
+					PacketUtils.sendExperience(player.getPlayer(), bar, level);
 					if(generator != null)
 						player.sendActionBarMessage(generator.generate(player, Math.floorDiv(waitTicks, 20)+1));
 				}
@@ -203,22 +188,18 @@ public class LGGame implements Listener{
 			
 			// Clear votes
 
-			WrapperPlayServerEntityDestroy destroy = new WrapperPlayServerEntityDestroy();
-			destroy.setEntityIds(new int[] {Integer.MIN_VALUE+player.getEntityId()});
 			int[] ids = new int[getInGame().size()+1];
 			for(int i = 0;i<getInGame().size();i++) {
 				Player l = getInGame().get(i).getPlayer();
 				if(l == null)
 					continue;
 				ids[i] = Integer.MIN_VALUE+l.getEntityId();
-				destroy.sendPacket(l);
+				PacketUtils.destroyEntities(l, Integer.MIN_VALUE+player.getEntityId());
 			}
-			
+
 			ids[ids.length-1] = -player.getEntityId();// Clear voting
-			
-			destroy = new WrapperPlayServerEntityDestroy();
-			destroy.setEntityIds(ids);
-			destroy.sendPacket(player);
+
+			PacketUtils.destroyEntities(player, ids);
 			
 			// End clear votes/voting
 
@@ -248,10 +229,7 @@ public class LGGame implements Listener{
 			broadcastMessage("§7Le joueur §8"+lgp.getName()+"§7 a rejoint la partie §9(§8"+inGame.size()+"§7/§8"+maxPlayers+"§9)");
 			
 			//Reset scoreboard
-			WrapperPlayServerScoreboardObjective obj = new WrapperPlayServerScoreboardObjective();
-			obj.setName("lg_scoreboard");
-			obj.setMode(1);
-			obj.sendPacket(player);
+			PacketUtils.send(player, new WrapperPlayServerScoreboardObjective("lg_scoreboard", ObjectiveMode.REMOVE, null, null));
 			
 			Bukkit.getPluginManager().callEvent(new LGGameJoinEvent(this, lgp));
 			//AutoStart
@@ -309,15 +287,11 @@ public class LGGame implements Listener{
 			List<Double> location = (List<Double>) list.remove(random.nextInt(list.size()));
 			Player p = lgp.getPlayer();
 			p.setWalkSpeed(0);
-			p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP, 99999, 180, false, false));
+			p.addPotionEffect(new PotionEffect(PotionEffectType.JUMP_BOOST, 99999, 180, false, false));
 			lgp.setPlace(original.indexOf(location));
 			placements.put(lgp.getPlace(), lgp);
 			p.teleport(new Location(p.getWorld(), location.get(0)+0.5, location.get(1), location.get(2)+0.5, location.get(3).floatValue(), location.get(4).floatValue()));
-			WrapperPlayServerUpdateHealth update = new WrapperPlayServerUpdateHealth();
-			update.setFood(6);
-			update.setFoodSaturation(1);
-			update.setHealth(20);
-			update.sendPacket(p);
+			PacketUtils.sendHealth(p, 20, 6, 1);
 			lgp.getScoreboard().getLine(0).setDisplayName("§6Attribution des rôles...");
 		}
 		
@@ -372,11 +346,7 @@ public class LGGame implements Listener{
 				LGPlayer player = toGive.remove(randomized);
 
 				role.join(player);
-				WrapperPlayServerUpdateHealth update = new WrapperPlayServerUpdateHealth();
-				update.setFood(6);
-				update.setFoodSaturation(1);
-				update.setHealth(20);
-				update.sendPacket(player.getPlayer());
+				PacketUtils.sendHealth(player.getPlayer(), 20, 6, 1);
 			}
 		started = true;
 		
@@ -466,11 +436,9 @@ public class LGGame implements Listener{
 				if(--timeoutLeft <= 20+20*2) {
 					if(timeoutLeft == 20)
 						cancel();
-					WrapperPlayServerUpdateTime time = new WrapperPlayServerUpdateTime();
-					time.setAgeOfTheWorld(0);
-					time.setTimeOfDay(LGGame.this.time = (long)(18000-(timeoutLeft-20D)/(20*2D)*12000D));
+					LGGame.this.time = (long)(18000-(timeoutLeft-20D)/(20*2D)*12000D);
 					for(LGPlayer lgp : getInGame())
-						time.sendPacket(lgp.getPlayer());
+						PacketUtils.sendTime(lgp.getPlayer(), LGGame.this.time);
 				}
 			}
 		}.runTaskTimer(MainLg.getInstance(), 1, 1);
@@ -533,12 +501,7 @@ public class LGGame implements Listener{
 			
 			for(LGPlayer lgp : getInGame())
 				if(lgp == killed) {
-					WrapperPlayServerPlayerInfo info = new WrapperPlayServerPlayerInfo();
-					ArrayList<PlayerInfoData> infos = new ArrayList<PlayerInfoData>();
-					info.setAction(PlayerInfoAction.REMOVE_PLAYER);
-					infos.add(new PlayerInfoData(new WrappedGameProfile(lgp.getPlayer().getUniqueId(), lgp.getName()), 0, NativeGameMode.ADVENTURE, WrappedChatComponent.fromText(lgp.getName())));
-					info.setData(infos);
-					info.sendPacket(lgp.getPlayer());
+					PacketUtils.removePlayerInfo(lgp.getPlayer(), lgp.getPlayer().getUniqueId());
 				}else
 					lgp.getPlayer().hidePlayer(killed.getPlayer());
 			
@@ -633,17 +596,14 @@ public class LGGame implements Listener{
 			
 			Player p = lgp.getPlayer();
 			lgp.showView();
-			p.removePotionEffect(PotionEffectType.JUMP);
+			p.removePotionEffect(PotionEffectType.JUMP_BOOST);
 			p.setWalkSpeed(0.2f);
 		}
-		
+
 		for(LGPlayer lgp : getInGame())
 			if(lgp.getPlayer().isOnline()) {
 				LGPlayer.removePlayer(lgp.getPlayer());
-				WrapperPlayServerScoreboardTeam team = new WrapperPlayServerScoreboardTeam();
-				team.setMode(1);
-				team.setName("you_are");
-				team.sendPacket(lgp.getPlayer());
+				PacketUtils.removeTeam(lgp.getPlayer(), "you_are");
 				LGPlayer.thePlayer(lgp.getPlayer()).join(MainLg.getInstance().getCurrentGame());
 			}
 		//A remettre pour activer le démarrage automatique
@@ -714,11 +674,9 @@ public class LGGame implements Listener{
 				if(timeoutLeft++ > 20) {
 					if(timeoutLeft == 20+(2*20))
 						cancel();
-					WrapperPlayServerUpdateTime time = new WrapperPlayServerUpdateTime();
-					time.setAgeOfTheWorld(0);
-					time.setTimeOfDay(LGGame.this.time = (long)(18000-(timeoutLeft-20D)/(20*2D)*12000D));
+					LGGame.this.time = (long)(18000-(timeoutLeft-20D)/(20*2D)*12000D);
 					for(LGPlayer lgp : getInGame())
-						time.sendPacket(lgp.getPlayer());
+						PacketUtils.sendTime(lgp.getPlayer(), LGGame.this.time);
 				}
 			}
 		}.runTaskTimer(MainLg.getInstance(), 1, 1);
@@ -803,11 +761,11 @@ public class LGGame implements Listener{
 	@EventHandler(priority = EventPriority.LOWEST)
 	public void onSkinChange(LGSkinLoadEvent e) {
 		if(e.getGame() == this) {
-			e.getProfile().getProperties().removeAll("textures");
+			e.getProfile().getTextureProperties().removeIf(property -> property.getName().equals("textures"));
 			if(getMayor() == e.getPlayer())
-				e.getProfile().getProperties().put("textures", LGCustomSkin.MAYOR.getProperty());
+				e.getProfile().getTextureProperties().add(LGCustomSkin.MAYOR.getProperty());
 			else
-				e.getProfile().getProperties().put("textures", LGCustomSkin.VILLAGER.getProperty());
+				e.getProfile().getTextureProperties().add(LGCustomSkin.VILLAGER.getProperty());
 		}
 	}
 	

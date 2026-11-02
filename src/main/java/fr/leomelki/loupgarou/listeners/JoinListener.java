@@ -13,12 +13,12 @@ import org.bukkit.event.player.PlayerResourcePackStatusEvent;
 import org.bukkit.event.player.PlayerResourcePackStatusEvent.Status;
 import org.bukkit.potion.PotionEffectType;
 
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams.TeamMode;
 
-import fr.leomelki.com.comphenix.packetwrapper.WrapperPlayServerScoreboardTeam;
 import fr.leomelki.loupgarou.MainLg;
 import fr.leomelki.loupgarou.classes.LGPlayer;
 import fr.leomelki.loupgarou.events.LGPlayerKilledEvent.Reason;
+import fr.leomelki.loupgarou.utils.PacketUtils;
 
 public class JoinListener implements Listener{
 	
@@ -26,24 +26,13 @@ public class JoinListener implements Listener{
 	public void onJoin(PlayerJoinEvent e) {
 		Player p = e.getPlayer();
 		
-		WrapperPlayServerScoreboardTeam myTeam = new WrapperPlayServerScoreboardTeam();
-		myTeam.setName(p.getName());
-		myTeam.setPrefix(WrappedChatComponent.fromText(""));
-		myTeam.setPlayers(Arrays.asList(p.getName()));
-		myTeam.setMode(0);
 		boolean noSpec = p.getGameMode() != GameMode.SPECTATOR;
 		for(Player player : Bukkit.getOnlinePlayers())
 			if(player != p) {
 				if(player.getGameMode() != GameMode.SPECTATOR)
 					player.hidePlayer(p);
-				WrapperPlayServerScoreboardTeam team = new WrapperPlayServerScoreboardTeam();
-				team.setName(player.getName());
-				team.setPrefix(WrappedChatComponent.fromText(""));
-				team.setPlayers(Arrays.asList(player.getName()));
-				team.setMode(0);
-				
-				team.sendPacket(p);
-				myTeam.sendPacket(player);
+				PacketUtils.sendTeam(p, player.getName(), TeamMode.CREATE, "", "", Arrays.asList(player.getName()));
+				PacketUtils.sendTeam(player, p.getName(), TeamMode.CREATE, "", "", Arrays.asList(p.getName()));
 			}
 		p.setFoodLevel(6);
 		if(e.getJoinMessage() == null || !e.getJoinMessage().equals("joinall"))
@@ -56,7 +45,7 @@ public class JoinListener implements Listener{
 		if(noSpec)
 			p.setGameMode(GameMode.ADVENTURE);
 		e.setJoinMessage("");
-		p.removePotionEffect(PotionEffectType.JUMP);
+		p.removePotionEffect(PotionEffectType.JUMP_BOOST);
 		p.removePotionEffect(PotionEffectType.INVISIBILITY);
 		p.setWalkSpeed(0.2f);
 	}
