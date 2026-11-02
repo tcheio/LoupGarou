@@ -38,13 +38,13 @@ Un serveur est mis à votre disposition pour vous permettre de jouer au LoupGaro
 ## Installation
 
 ### Dépendances requises
-- [ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/)
+- [PacketEvents](https://github.com/retrooper/packetevents/releases) 2.13 ou plus récent (version `packetevents-spigot`)
 
 ### Installation classique
-**Minecraft 1.15.1 est requis.**  
+**Minecraft 26.2 et Java 25 sont requis.**  
 Pour installer le plug-in, merci de suivre les étapes suivantes:
-  - Téléchargez Spigot 1.15.1 et lancez une fois le serveur
-  - Dans le dossier `plugins`, insérez [ProtocolLib](https://www.spigotmc.org/resources/protocollib.1997/) et [LoupGarou.jar](https://github.com/leomelki/LoupGarou/releases)
+  - Téléchargez Spigot 26.2 (`java -jar BuildTools.jar --rev 26.2`) et lancez une fois le serveur
+  - Dans le dossier `plugins`, insérez [PacketEvents](https://github.com/retrooper/packetevents/releases) et `LoupGarou.jar`
   - Redémarrez votre serveur puis donnez vous les permissions administrateur (/op <votre_pseudo> dans la console)
   - Allez sur la map et ajoutez les points de spawn sur chaque dalle `/lg addSpawn`
   - Connectez-vous au serveur et choisissez les rôles à utiliser avec `/lg roles set <ROLE> <MONTANT>`
@@ -128,8 +128,8 @@ Il vous faut au minimum un loup garou normal lorsque vous mettez d'autres types 
 
 Ce plugin LoupGarou ayant été modifié de nombreuses fois, parfois dans des timings tendus, le code n'est pas très propre. Aussi, il n'est pas documenté.  
 
-Vous devez utiliser `Lombok` et `Maven` pour modifier ce projet. 
-Vous devez aussi installer la repository `Spigot` avec [BuildTools](https://www.spigotmc.org/wiki/buildtools/).
+Vous devez utiliser `Lombok`, `Maven` et un JDK 25 pour modifier ce projet.  
+Le plugin est compilé avec `mvn clean package` contre l'API Spigot 26.2 et PacketEvents, téléchargées automatiquement par Maven : BuildTools n'est plus nécessaire pour compiler, uniquement pour obtenir le serveur. Le jar est généré dans `target/LoupGarou.jar`.
 
 **Cependant, si l'envie vous prend de modifier ou d'utiliser le code ici présent en partie, ou dans sa totalité, merci de créditer [Leomelki](https://twitter.com/leomelki) et [Shytoos](https://twitter.com/shytoos_).
 Une utilisation commerciale est cependant interdite. Merci de vous référer aux informations de [license](#license)**

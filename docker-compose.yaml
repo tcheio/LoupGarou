@@ -6,7 +6,7 @@ services:
             context: .
             dockerfile: ./docker/Dockerfile
             args:
-                SPIGOT_VERSION: 1.15.1
+                SPIGOT_VERSION: "26.2"
         volumes:
             - ./minecraft_data:/minecraft
         ports:
